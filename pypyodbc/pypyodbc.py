@@ -1131,25 +1131,26 @@ class Cursor:
                     c_buf_len = SQL_NULL_DATA
                     
                 elif type(param_val) == datetime.datetime:
-                    c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                    datetime_str = param_val.isoformat().replace('T',' ') 
-                    if len(datetime_str) == 19:
-                        datetime_str += '.000'
-                    c_char_buf = datetime_str[:c_buf_len]
+                    max_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                    datetime_str = param_val.strftime('%Y-%m-%d %H:%M:%S.%f')
+                    c_char_buf = datetime_str[:max_len]
+                    c_buf_len = len(c_char_buf)
                     # print c_buf_len, c_char_buf
                     
                 elif type(param_val) == datetime.date:
                     if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
+                        max_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
                     else:
-                        c_buf_len = 10
-                    c_char_buf = param_val.isoformat()[:c_buf_len]
+                        max_len = 10
+                    c_char_buf = param_val.isoformat()[:max_len]
+                    c_buf_len = len(c_char_buf)
                     #print c_char_buf
                     
                 elif type(param_val) == datetime.time:
                     if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
-                        c_char_buf = param_val.isoformat()[0:c_buf_len]
+                        max_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
+                        c_char_buf = param_val.isoformat()[:max_len]
+                        c_buf_len = len(c_char_buf)
                     else:
                         c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                         time_str = param_val.isoformat()
@@ -1385,7 +1386,7 @@ class Cursor:
                     col_size = self.connection.type_size_dic[SQL_TYPE_DATE][1]
                     
                 else:
-                    #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                    # SQL Sever <2008 doesn't have a DATE type.
                     sql_type = SQL_TYPE_TIMESTAMP 
                     buf_size = 10                    
                     ParameterBuffer = create_buffer(buf_size)
@@ -1399,7 +1400,8 @@ class Cursor:
                     ParameterBuffer = create_buffer(buf_size)
                     col_size = self.connection.type_size_dic[SQL_TYPE_TIME][1]                   
                 else:
-                    sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                    # SQL Sever <2008 doesn't have a TIME type.
+                    sql_type = SQL_TYPE_TIMESTAMP
                     buf_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]                    
                     ParameterBuffer = create_buffer(buf_size)
                     col_size = 3
@@ -2145,35 +2147,16 @@ class Connection:
         return Cursor(self, row_type_callable=row_type_callable)   
 
     def update_type_size_info(self):
-        #Get the scale information for SQL_TYPE_TIMESTAMP
-        cur = Cursor(self)
-        info_tuple = cur.getTypeInfo(SQL_TYPE_TIMESTAMP).fetchone()
-        if info_tuple != None:
-            self.type_size_dic[SQL_TYPE_TIMESTAMP] = info_tuple[2], info_tuple[13]
-        cur.close()
-        
-        cur = Cursor(self)
-        info_tuple = cur.getTypeInfo(SQL_TYPE_TIME).fetchone()
-        if info_tuple != None:        
-            self.type_size_dic[SQL_TYPE_TIME] = info_tuple[2], info_tuple[13]
-        cur.close()
-        
-        
-        cur = Cursor(self)
-        if DEBUG: print 'SQL_TYPE_DATE:',
-        info_tuple = cur.getTypeInfo(SQL_TYPE_DATE).fetchone()
-        if info_tuple != None:        
-            self.type_size_dic[SQL_TYPE_DATE] = info_tuple[2], info_tuple[13]
-            
-            if DEBUG: print info_tuple[2], info_tuple[13]
-        cur.close()
-        
-        
-        cur = Cursor(self)
-        info_tuple = cur.getTypeInfo(SQL_TIME).fetchone()
-        if info_tuple != None:        
-            self.type_size_dic[SQL_TIME] = info_tuple[2], info_tuple[13]
-        cur.close()
+        for sql_type in (
+            SQL_TYPE_TIMESTAMP,
+            SQL_TYPE_DATE,
+            SQL_TYPE_TIME,
+        ):
+            cur = Cursor(self)
+            info_tuple = cur.getTypeInfo(sql_type).fetchone()
+            if info_tuple != None:
+                self.type_size_dic[sql_type] = info_tuple[2], info_tuple[14]
+            cur.close()
 
     
     def commit(self):
