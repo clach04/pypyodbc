@@ -546,24 +546,368 @@ SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CH
 }
 
 
+"""
+Types mapping, applicable for 32-bit and 64-bit Linux / Windows / Mac OS X.
+
+SQLPointer -> ctypes.c_void_p
+SQLCHAR * -> ctypes.c_char_p
+SQLWCHAR * -> ctypes.c_wchar_p on Windows, ctypes.c_char_p with unixODBC
+SQLINT -> ctypes.c_int
+SQLSMALLINT -> ctypes.c_short
+SQMUSMALLINT -> ctypes.c_ushort
+SQLLEN -> ctypes.c_ssize_t
+SQLULEN -> ctypes.c_size_t
+SQLRETURN -> ctypes.c_short
+"""
+
 # Define the python return type for ODBC functions with ret result.
-funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
-        "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
-        "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
-        "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll","SQLMoreResults","SQLGetInfo","SQLGetData",
-        "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
-        "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures","SQLProcedureColumns"]
+funcs_with_ret = [
+    "SQLAllocHandle",
+    "SQLBindParameter",
+    "SQLCloseCursor",
+    "SQLColAttribute",
+    "SQLColumns",
+    "SQLColumnsW",
+    "SQLConnect",
+    "SQLConnectW",
+    "SQLDataSources",
+    "SQLDataSourcesW",
+    "SQLDescribeCol",
+    "SQLDescribeColW",
+    "SQLDescribeParam",
+    "SQLDisconnect",
+    "SQLDriverConnect",
+    "SQLDriverConnectW",
+    "SQLEndTran",
+    "SQLExecDirect",
+    "SQLExecDirectW",
+    "SQLExecute",
+    "SQLFetch",
+    "SQLFetchScroll",
+    "SQLForeignKeys",
+    "SQLForeignKeysW",
+    "SQLFreeHandle",
+    "SQLFreeStmt",
+    "SQLGetData",
+    "SQLGetDiagRec",
+    "SQLGetInfo",
+    "SQLGetTypeInfo",
+    "SQLMoreResults",
+    "SQLNumParams",
+    "SQLNumResultCols",
+    "SQLPrepare",
+    "SQLPrepareW",
+    "SQLPrimaryKeys",
+    "SQLPrimaryKeysW",
+    "SQLProcedureColumns",
+    "SQLProcedureColumnsW",
+    "SQLProcedures",
+    "SQLProceduresW",
+    "SQLRowCount",
+    "SQLSetConnectAttr",
+    "SQLSetEnvAttr",
+    "SQLStatistics",
+    "SQLStatisticsW",
+    "SQLTables",
+    "SQLTablesW",
+]
 
-for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
+for func_name in funcs_with_ret:
+    getattr(ODBC_API, func_name).restype = ctypes.c_short
 
 
-ODBC_API.SQLFetch.argtypes = [ctypes.c_int]
-ODBC_API.SQLExecute.argtypes = [ctypes.c_int]
-ODBC_API.SQLPrepare.argtypes = [ctypes.c_int,ctypes.c_char_p,ctypes.c_int]
-ODBC_API.SQLPrepareW.argtypes = [ctypes.c_int,wchar_type,ctypes.c_int]
-ODBC_API.SQLExecDirect.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-ODBC_API.SQLExecDirectW.argtypes = [ctypes.c_int, wchar_type, ctypes.c_int]
-ODBC_API.SQLTables.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+ODBC_API.SQLAllocHandle.argtypes = [
+    ctypes.c_short,
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_void_p),
+]
+
+ODBC_API.SQLBindParameter.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.c_short,
+    ctypes.c_short,
+    ctypes.c_short,
+    ctypes.c_size_t,
+    ctypes.c_short,
+    ctypes.c_void_p,
+    ctypes.c_ssize_t,
+    ctypes.POINTER(ctypes.c_ssize_t),
+]
+
+ODBC_API.SQLCloseCursor.argtypes = [ctypes.c_void_p]
+
+ODBC_API.SQLColAttribute.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.c_ushort,
+    ctypes.c_void_p,
+    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.POINTER(ctypes.c_ssize_t),
+]
+
+ODBC_API.SQLColumns.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLConnect.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLDataSources.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLDescribeCol.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.POINTER(ctypes.c_size_t),
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.POINTER(ctypes.c_short),
+]
+
+ODBC_API.SQLDescribeParam.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.POINTER(ctypes.c_size_t),
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.POINTER(ctypes.c_short),
+]
+
+ODBC_API.SQLDisconnect.argtypes = [ctypes.c_void_p]
+
+ODBC_API.SQLDriverConnect.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
+    ctypes.c_ushort,
+]
+
+ODBC_API.SQLEndTran.argtypes = [
+    ctypes.c_short,
+    ctypes.c_void_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLExecute.argtypes = [ctypes.c_void_p]
+
+ODBC_API.SQLExecDirect.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_int,
+]
+
+ODBC_API.SQLFetch.argtypes = [ctypes.c_void_p]
+
+ODBC_API.SQLFetchScroll.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_short,
+    ctypes.c_ssize_t,
+]
+
+ODBC_API.SQLForeignKeys.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLFreeHandle.argtypes = [
+    ctypes.c_short,
+    ctypes.c_void_p,
+]
+
+ODBC_API.SQLFreeStmt.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+]
+
+ODBC_API.SQLGetData.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.c_short,
+    ctypes.c_void_p,
+    ctypes.c_ssize_t,
+    ctypes.POINTER(ctypes.c_ssize_t),
+]
+
+ODBC_API.SQLGetDiagRec.argtypes = [
+    ctypes.c_short,
+    ctypes.c_void_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_int),
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
+]
+
+ODBC_API.SQLGetInfo.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_ushort,
+    ctypes.c_void_p,
+    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
+]
+
+ODBC_API.SQLGetTypeInfo.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLMoreResults.argtypes = [ctypes.c_void_p]
+
+ODBC_API.SQLNumParams.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_short),
+]
+
+ODBC_API.SQLNumResultCols.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_short),
+]
+
+ODBC_API.SQLPrepare.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_int,
+]
+
+ODBC_API.SQLPrimaryKeys.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLProcedureColumns.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLProcedures.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+ODBC_API.SQLRowCount.argtypes = [
+    ctypes.c_void_p,
+    ctypes.POINTER(ctypes.c_ssize_t),
+]
+
+ODBC_API.SQLSetConnectAttr.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_int,
+    ctypes.c_void_p,
+    ctypes.c_int,
+]
+
+ODBC_API.SQLSetEnvAttr.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_int,
+    ctypes.c_void_p,
+    ctypes.c_int,
+]
+
+ODBC_API.SQLStatistics.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_ushort,
+    ctypes.c_ushort,
+]
+
+ODBC_API.SQLTables.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+    ctypes.c_char_p,
+    ctypes.c_short,
+]
+
+def to_wchar(argtypes):
+    return [
+        wchar_type if x == ctypes.c_char_p else x
+        for x in argtypes
+    ]
+
+ODBC_API.SQLColumnsW.argtypes = to_wchar(ODBC_API.SQLColumns.argtypes)
+ODBC_API.SQLConnectW.argtypes = to_wchar(ODBC_API.SQLConnect.argtypes)
+ODBC_API.SQLDataSourcesW.argtypes = to_wchar(ODBC_API.SQLDataSources.argtypes)
+ODBC_API.SQLDescribeColW.argtypes = to_wchar(ODBC_API.SQLDescribeCol.argtypes)
+ODBC_API.SQLDriverConnectW.argtypes = to_wchar(ODBC_API.SQLDriverConnect.argtypes)
+ODBC_API.SQLExecDirectW.argtypes = to_wchar(ODBC_API.SQLExecDirect.argtypes)
+ODBC_API.SQLForeignKeysW.argtypes = to_wchar(ODBC_API.SQLForeignKeys.argtypes)
+ODBC_API.SQLPrepareW.argtypes = to_wchar(ODBC_API.SQLPrepare.argtypes)
+ODBC_API.SQLPrimaryKeysW.argtypes = to_wchar(ODBC_API.SQLPrimaryKeys.argtypes)
+ODBC_API.SQLProcedureColumnsW.argtypes = to_wchar(ODBC_API.SQLProcedureColumns.argtypes)
+ODBC_API.SQLProceduresW.argtypes = to_wchar(ODBC_API.SQLProcedures.argtypes)
+ODBC_API.SQLStatisticsW.argtypes = to_wchar(ODBC_API.SQLStatistics.argtypes)
+ODBC_API.SQLTablesW.argtypes = to_wchar(ODBC_API.SQLTables.argtypes)
+
 
 # Set the alias for the ctypes functions for beter code readbility or performance.
 ADDR = ctypes.byref
@@ -581,7 +925,7 @@ def ctrl_err(ht, h, val_ret):
     state = create_buffer(5)
     NativeError = ctypes.c_int()
     Message = create_buffer(1024*10)
-    Buffer_len = ctypes.c_int()
+    Buffer_len = ctypes.c_short()
     err_list = []
     number_errors = 1
     
@@ -633,7 +977,7 @@ def AllocateEnv():
     connections pooling can be shared under one environment
     '''
     global shared_env_h 
-    shared_env_h  = ctypes.c_int()
+    shared_env_h  = ctypes.c_void_p()
     ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, ADDR(shared_env_h))
     validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
@@ -739,7 +1083,7 @@ class Cursor:
         """ Initialize self._stmt_h, which is the handle of a statement
         A statement is actually the basis of a python"cursor" object
         """
-        self._stmt_h = ctypes.c_int()
+        self._stmt_h = ctypes.c_void_p()
         self.connection = conx
         self.row_type_callable = row_type_callable or TupleRow
         self.statement = None
@@ -965,7 +1309,7 @@ class Cursor:
     def _BindParams(self, param_types, pram_io_list = []):
         """Create parameter buffers based on param types, and bind them to the statement"""
         # Get the number of query parameters judged by database.
-        NumParams = ctypes.c_int()
+        NumParams = ctypes.c_short()
         ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
         if ret != SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -1109,8 +1453,8 @@ class Cursor:
                 buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer(buf_size)
                 
-            BufferLen = ctypes.c_long(buf_size)
-            LenOrIndBuf = ctypes.c_long()
+            BufferLen = ctypes.c_ssize_t(buf_size)
+            LenOrIndBuf = ctypes.c_ssize_t()
                 
             
             InputOutputType = SQL_PARAM_INPUT
@@ -1149,7 +1493,7 @@ class Cursor:
 
             alloc_buffer = SQL_data_type_dict[col_sql_data_type][3](total_buf_len)
 
-            used_buf_len = ctypes.c_long()
+            used_buf_len = ctypes.c_ssize_t()
             
             target_type = SQL_data_type_dict[col_sql_data_type][2]
             force_unicode = self.connection.unicode_results
@@ -1221,21 +1565,21 @@ class Cursor:
     def _UpdateDesc(self):
         "Get the information of (name, type_code, display_size, internal_size, col_precision, scale, null_ok)"  
         Cname = create_buffer(1024)
-        Cname_ptr = ctypes.c_int()
+        Cname_ptr = ctypes.c_short()
         Ctype_code = ctypes.c_short()
-        Csize = ctypes.c_int()
-        Cdisp_size = ctypes.c_int(0)
-        CDecimalDigits = ctypes.c_int()
-        Cnull_ok = ctypes.c_int()
+        Csize = ctypes.c_size_t()
+        Cdisp_size = ctypes.c_ssize_t(0)
+        CDecimalDigits = ctypes.c_short()
+        Cnull_ok = ctypes.c_short()
         ColDescr = []
         self._ColTypeCodeList = []
         NOC = self._NumOfCols()
         for col in range(1, NOC+1):
             ret = ODBC_API.SQLColAttribute(self._stmt_h, col, SQL_DESC_DISPLAY_SIZE, ADDR(create_buffer(10)), 
-                10, ADDR(ctypes.c_int()),ADDR(Cdisp_size))
+                10, ADDR(ctypes.c_short()),ADDR(Cdisp_size))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
-            ret = ODBC_API.SQLDescribeCol(self._stmt_h, col, ADDR(Cname), len(Cname), ADDR(Cname_ptr),\
+            ret = ODBC_API.SQLDescribeCol(self._stmt_h, col, Cname, len(Cname), ADDR(Cname_ptr),\
                 ADDR(Ctype_code),ADDR(Csize),ADDR(CDecimalDigits), ADDR(Cnull_ok))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
@@ -1257,7 +1601,7 @@ class Cursor:
     
     def _NumOfRows(self):
         """Get the number of rows"""
-        NOR = ctypes.c_int()
+        NOR = ctypes.c_ssize_t()
         ret = ODBC_API.SQLRowCount(self._stmt_h, ADDR(NOR))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.rowcount = NOR.value
@@ -1266,7 +1610,7 @@ class Cursor:
     
     def _NumOfCols(self):
         """Get the number of cols"""
-        NOC = ctypes.c_int()
+        NOC = ctypes.c_short()
         ret = ODBC_API.SQLNumResultCols(self._stmt_h, ADDR(NOC))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         return NOC.value
@@ -1673,7 +2017,7 @@ class Connection:
         self.connected = 0
         self.type_size_dic = {}
         self.unicode_results = False
-        self.dbc_h = ctypes.c_int()
+        self.dbc_h = ctypes.c_void_p()
         self.autocommit = autocommit
         self.readonly = False
         self.timeout = 0
@@ -1882,7 +2226,7 @@ class Connection:
         else:
             total_buf_len = 1000
             alloc_buffer = create_buffer(total_buf_len)
-            used_buf_len = ctypes.c_long()
+            used_buf_len = ctypes.c_short()
             ret = ODBC_API.SQLGetInfo(self.dbc_h,infotype,ADDR(alloc_buffer), total_buf_len,\
                     ADDR(used_buf_len))
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
@@ -1956,8 +2300,8 @@ def dataSources():
     """Return a list with [name, descrition]"""
     dsn = create_buffer(1024)
     desc = create_buffer(1024)
-    dsn_len = ctypes.c_int()
-    desc_len = ctypes.c_int()
+    dsn_len = ctypes.c_short()
+    desc_len = ctypes.c_short()
     dsn_list = {}
     with lock:
         if shared_env_h == None:
