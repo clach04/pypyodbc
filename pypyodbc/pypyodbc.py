@@ -117,6 +117,8 @@ SQL_C_GUID =            SQL_GUID =          -11
 SQL_C_TYPE_TIMESTAMP =  SQL_TYPE_TIMESTAMP = 93
 SQL_C_DEFAULT = 99
 
+SQL_SS_TIME2 = -154
+
 SQL_DESC_DISPLAY_SIZE = SQL_COLUMN_DISPLAY_SIZE
 
 
@@ -520,6 +522,7 @@ SQL_REAL            : (float,               float,                      SQL_C_CH
 SQL_DOUBLE          : (float,               float,                      SQL_C_CHAR,         create_buffer,      200    ),
 SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CHAR ,        create_buffer,      30     ),
 SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
+SQL_SS_TIME2        : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
 SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30     ),
 SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
 SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      20500  ),
@@ -1151,6 +1154,10 @@ class Cursor:
                         max_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
                         c_char_buf = param_val.isoformat()[:max_len]
                         c_buf_len = len(c_char_buf)
+                    elif self.connection.type_size_dic.has_key(SQL_SS_TIME2):
+                        max_len = self.connection.type_size_dic[SQL_SS_TIME2][0]
+                        c_char_buf = param_val.isoformat()[:max_len]
+                        c_buf_len = len(c_char_buf)
                     else:
                         c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                         time_str = param_val.isoformat()
@@ -1399,6 +1406,12 @@ class Cursor:
                     buf_size = self.connection.type_size_dic[SQL_TYPE_TIME][0]                    
                     ParameterBuffer = create_buffer(buf_size)
                     col_size = self.connection.type_size_dic[SQL_TYPE_TIME][1]                   
+                elif self.connection.type_size_dic.has_key(SQL_SS_TIME2):
+                    # TIME type added in SQL Server 2008
+                    sql_type = SQL_SS_TIME2
+                    buf_size = self.connection.type_size_dic[SQL_SS_TIME2][0]
+                    ParameterBuffer = create_buffer(buf_size)
+                    col_size = self.connection.type_size_dic[SQL_SS_TIME2][1]
                 else:
                     # SQL Sever <2008 doesn't have a TIME type.
                     sql_type = SQL_TYPE_TIMESTAMP
@@ -2151,6 +2164,7 @@ class Connection:
             SQL_TYPE_TIMESTAMP,
             SQL_TYPE_DATE,
             SQL_TYPE_TIME,
+            SQL_SS_TIME2,
         ):
             cur = Cursor(self)
             info_tuple = cur.getTypeInfo(sql_type).fetchone()
