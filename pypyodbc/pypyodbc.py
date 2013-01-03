@@ -1112,7 +1112,7 @@ class Cursor:
 
         self._free_results('FREE_STATEMENT')
 
-        if params is not None:
+        if params:
             # If parameters exist, first prepare the query then executed with parameters
             if not type(params) in (tuple, list, set):
                 raise TypeError("Params must be in a list, tuple, or set")
