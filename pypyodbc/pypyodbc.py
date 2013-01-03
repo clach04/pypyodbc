@@ -1610,10 +1610,24 @@ class Connection:
         
         if not ansi:
             c_connectString = ctypes.c_wchar_p(self.connectString)
-            ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+            odbc_func = ODBC_API.SQLDriverConnectW
         else:
             c_connectString = ctypes.c_char_p(self.connectString)
-            ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+            odbc_func = ODBC_API.SQLDriverConnect
+
+        # With unixODBC, SQLDriverConnect will intermittently fail with error:
+        #    [01000] [unixODBC][Driver Manager]Can't open lib '/path/to/so' : file not found"
+        # or:
+        #    [01000] [unixODBC][Driver Manager]Can't open lib '/path/to/so' : (null)"
+        # when called concurrently by more than one threads. So, we have to
+        # use a lock to serialize the calls. By the way, the error is much
+        # less likely to happen if ODBC Tracing is enabled, likely due to the
+        # implicit serialization caused by writing to trace file.
+        if ODBC_API._name != 'odbc32':
+            with lock:
+                ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+        else:
+            ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
             
         
