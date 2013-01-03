@@ -132,46 +132,6 @@ def dt_cvt(x):
     else: return datetime.date(int(x[0:4]),int(x[5:7]),int(x[8:10]))
 
 
-create_buffer_u = ctypes.create_unicode_buffer
-create_buffer = ctypes.create_string_buffer
-
-
-# Below Datatype mappings referenced the document at
-# http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
-
-
-SQL_data_type_dict = { \
-#SQL Data TYPE        0.Python Data Type     1.Default Output Converter  2.Buffer Type     3.Buffer Allocator   4.Default Buffer Size
-SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CHAR,         create_buffer,      2      ), 
-SQL_CHAR            : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
-SQL_NUMERIC         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer,      150    ),
-SQL_DECIMAL         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer,      150    ),
-SQL_INTEGER         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
-SQL_SMALLINT        : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
-SQL_FLOAT           : (float,               float,                      SQL_C_CHAR,         create_buffer,      150    ),
-SQL_REAL            : (float,               float,                      SQL_C_CHAR,         create_buffer,      150    ),
-SQL_DOUBLE          : (float,               float,                      SQL_C_CHAR,         create_buffer,      200    ),
-SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CHAR ,        create_buffer,      30     ),
-SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
-SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30     ),
-SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
-SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      20500  ),
-SQL_BINARY          : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
-SQL_VARBINARY       : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
-SQL_LONGVARBINARY   : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      20500  ),
-SQL_BIGINT          : (long,                long,                       SQL_C_CHAR,         create_buffer,      150    ),
-SQL_TINYINT         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
-SQL_BIT             : (bool,                lambda x:x=='1',            SQL_C_CHAR,         create_buffer,      2      ),
-SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
-SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
-SQL_GUID            : (str,                 str,                        SQL_C_CHAR,         create_buffer,      50     ),
-SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    20500  ),
-SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer,      30     ),
-SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
-SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30      ), 
-}
-
-
 # Below defines The constants for sqlgetinfo method, and their coresponding return types
 SQL_QUALIFIER_LOCATION = 114
 SQL_QUALIFIER_NAME_SEPARATOR = 41
@@ -490,6 +450,8 @@ class OperationalError(DatabaseError):
 # Get the References of the platform's ODBC functions via ctypes 
 if sys.platform in ('win32','cli'):
     ODBC_API = ctypes.windll.odbc32
+    # On Windows, the size of SQLWCHAR is hardcoded to 2-bytes.
+    SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_ushort)
 else:
     # Set the library location on linux 
     lib_paths = ("/usr/lib/libodbc.so","/usr/lib/i386-linux-gnu/libodbc.so","/usr/lib/x86_64-linux-gnu/libodbc.so")
@@ -502,6 +464,86 @@ else:
     except:
         raise OdbcLibraryError, 'Error while loading %s' % library
 
+    # unixODBC defaults to 2-bytes SQLWCHAR, unless "-DSQL_WCHART_CONVERT" was
+    # added to CFLAGS, in which case it will be the size of wchar_t.
+    # Note that using 4-bytes SQLWCHAR will break most ODBC drivers, as driver
+    # development mostly targets the Windows platform.
+    import commands
+    status, output = commands.getstatusoutput('odbc_config --cflags')
+    if status == 0 and 'SQL_WCHART_CONVERT' in output:
+        SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
+    else:
+        SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_ushort)
+
+
+create_buffer_u = ctypes.create_unicode_buffer
+create_buffer = ctypes.create_string_buffer
+wchar_type = ctypes.c_wchar_p
+to_unicode = lambda s: s
+from_buffer_u = lambda buffer: buffer.value
+
+# This is the common case on Linux, which uses wide Python build together with
+# the default unixODBC without the "-DSQL_WCHART_CONVERT" CFLAGS.
+if UNICODE_SIZE > SQLWCHAR_SIZE:
+    # We can only use unicode buffer if the size of wchar_t (UNICODE_SIZE) is
+    # the same as the size expected by the driver manager (SQLWCHAR_SIZE).
+    create_buffer_u = create_buffer
+    wchar_type = ctypes.c_char_p
+
+    def to_unicode(s):
+        return s.encode('UTF-16LE')
+
+    def from_buffer_u(buffer):
+        i = 0
+        uchars = []
+        while True:
+            uchar = buffer.raw[i:i + 2].decode('UTF-16')
+            if uchar == u'\x00':
+                break
+            uchars.append(uchar)
+            i += 2
+        return ''.join(uchars)
+
+# Exoteric case, don't really care.
+elif UNICODE_SIZE < SQLWCHAR_SIZE:
+    raise OdbcLibraryError('Using narrow Python build with ODBC library '
+        'expecting wide unicode is not supported.')
+
+
+# Below Datatype mappings referenced the document at
+# http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
+
+
+SQL_data_type_dict = { \
+#SQL Data TYPE        0.Python Data Type     1.Default Output Converter  2.Buffer Type     3.Buffer Allocator   4.Default Buffer Size
+SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CHAR,         create_buffer,      2      ), 
+SQL_CHAR            : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
+SQL_NUMERIC         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer,      150    ),
+SQL_DECIMAL         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer,      150    ),
+SQL_INTEGER         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
+SQL_SMALLINT        : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
+SQL_FLOAT           : (float,               float,                      SQL_C_CHAR,         create_buffer,      150    ),
+SQL_REAL            : (float,               float,                      SQL_C_CHAR,         create_buffer,      150    ),
+SQL_DOUBLE          : (float,               float,                      SQL_C_CHAR,         create_buffer,      200    ),
+SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CHAR ,        create_buffer,      30     ),
+SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
+SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30     ),
+SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
+SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      20500  ),
+SQL_BINARY          : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
+SQL_VARBINARY       : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
+SQL_LONGVARBINARY   : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      20500  ),
+SQL_BIGINT          : (long,                long,                       SQL_C_CHAR,         create_buffer,      150    ),
+SQL_TINYINT         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
+SQL_BIT             : (bool,                lambda x:x=='1',            SQL_C_CHAR,         create_buffer,      2      ),
+SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
+SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
+SQL_GUID            : (str,                 str,                        SQL_C_CHAR,         create_buffer,      50     ),
+SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    20500  ),
+SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer,      30     ),
+SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
+SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30      ), 
+}
 
 
 # Define the python return type for ODBC functions with ret result.
@@ -518,9 +560,9 @@ for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_
 ODBC_API.SQLFetch.argtypes = [ctypes.c_int]
 ODBC_API.SQLExecute.argtypes = [ctypes.c_int]
 ODBC_API.SQLPrepare.argtypes = [ctypes.c_int,ctypes.c_char_p,ctypes.c_int]
-ODBC_API.SQLPrepareW.argtypes = [ctypes.c_int,ctypes.c_wchar_p,ctypes.c_int]
+ODBC_API.SQLPrepareW.argtypes = [ctypes.c_int,wchar_type,ctypes.c_int]
 ODBC_API.SQLExecDirect.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-ODBC_API.SQLExecDirectW.argtypes = [ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int]
+ODBC_API.SQLExecDirectW.argtypes = [ctypes.c_int, wchar_type, ctypes.c_int]
 ODBC_API.SQLTables.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
 
 # Set the alias for the ctypes functions for beter code readbility or performance.
@@ -744,7 +786,7 @@ class Cursor:
                     c_char_buf = param_val
                     c_buf_len = len(c_char_buf)
                 elif type(param_val) in (unicode,):
-                    c_char_buf = param_val
+                    c_char_buf = to_unicode(param_val)
                     c_buf_len = len(c_char_buf)
                 elif type(param_val) in (bytearray,buffer):
                     c_char_buf = str(param_val)
@@ -794,9 +836,11 @@ class Cursor:
     def prepare(self, query_string):
         """prepare a query"""
         if type(query_string) == unicode:
-            ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
+            c_query_string = wchar_type(to_unicode(query_string))
+            ret = ODBC_API.SQLPrepareW(self._stmt_h, c_query_string, len(query_string))
         else:
-            ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
+            c_query_string = ctypes.c_char_p(query_string)
+            ret = ODBC_API.SQLPrepare(self._stmt_h, c_query_string, len(query_string))
         if ret != SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.statement = query_string
@@ -805,9 +849,11 @@ class Cursor:
     def execdirect(self, query_string):
         """Execute a query directly"""
         if type(query_string) == unicode:
-            ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
+            c_query_string = wchar_type(to_unicode(query_string))
+            ret = ODBC_API.SQLExecDirectW(self._stmt_h, c_query_string, len(query_string))
         else:
-            ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
+            c_query_string = ctypes.c_char_p(query_string)
+            ret = ODBC_API.SQLExecDirect(self._stmt_h, c_query_string, len(query_string))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self._NumOfRows()
         self._UpdateDesc()
@@ -1071,6 +1117,8 @@ class Cursor:
                     else:
                         if target_type == SQL_C_BINARY:
                             blocks.append(alloc_buffer.raw[:used_buf_len.value])
+                        elif target_type == SQL_C_WCHAR:
+                            blocks.append(from_buffer_u(alloc_buffer))
                         else:
                             #print col_name, target_type, alloc_buffer.value
                             blocks.append(alloc_buffer.value)
@@ -1609,7 +1657,7 @@ class Connection:
         
         
         if not ansi:
-            c_connectString = ctypes.c_wchar_p(self.connectString)
+            c_connectString = wchar_type(to_unicode(self.connectString))
             odbc_func = ODBC_API.SQLDriverConnectW
         else:
             c_connectString = ctypes.c_char_p(self.connectString)
