@@ -22,7 +22,7 @@
 
 
 
-import sys, os, datetime, ctypes
+import sys, os, datetime, ctypes, threading
 from decimal import Decimal
 
 DEBUG = 0
@@ -30,6 +30,7 @@ DEBUG = 0
 if DEBUG: print 'DEBUGGING'
 
 pooling = True
+lock = threading.Lock()
 shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
@@ -1569,10 +1570,10 @@ class Connection:
         
         self.clear_output_converters()
 
-        
-        if shared_env_h == None:
-            #Initialize an enviroment if it is not created.
-            AllocateEnv()
+        with lock:
+            if shared_env_h == None:
+                #Initialize an enviroment if it is not created.
+                AllocateEnv()
             
         # Allocate an DBC handle self.dbc_h under the environment shared_env_h
         # This DBC handle is actually the basis of a "connection"
@@ -1829,8 +1830,9 @@ def dataSources():
     dsn_len = ctypes.c_int()
     desc_len = ctypes.c_int()
     dsn_list = {}
-    if shared_env_h == None:
-        AllocateEnv()
+    with lock:
+        if shared_env_h == None:
+            AllocateEnv()
     while 1:
         ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
             dsn, len(dsn), ADDR(dsn_len), desc, len(desc), ADDR(desc_len))
