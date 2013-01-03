@@ -1104,26 +1104,15 @@ class Cursor:
         self.closed = False
 
     
-    def execute(self, query_string, *args, **kargs):
+    def execute(self, query_string, params=None, many_mode=False, call_mode=False):
         """ Execute the query string, with optional parameters.
         If parameters are provided, the query would first be prepared, then executed with parameters;
         If parameters are not provided, only th query sting, it would be executed directly 
         """
 
-        many_mode = kargs.get('many_mode',False)
-        callproc_mode = kargs.get('call_mode',False)
-        
         self._free_results('FREE_STATEMENT')
-        if len(args) > 0:
-            if len(args) == 1 and type(args[0]) in (tuple, list, set):
-                params = args[0]
-            else:
-                params = args
-        else:
-            params = None
-            
 
-        if params != None:
+        if params is not None:
             # If parameters exist, first prepare the query then executed with parameters
             if not type(params) in (tuple, list, set):
                 raise TypeError("Params must be in a list, tuple, or set")
@@ -1136,7 +1125,7 @@ class Cursor:
     
             param_types = map(get_type, params)
 
-            if callproc_mode:
+            if call_mode:
                 self._BindParams(param_types, self._pram_io_list)
             else:
                 if param_types != self._last_param_types:
