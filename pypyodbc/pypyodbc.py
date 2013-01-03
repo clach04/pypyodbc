@@ -115,6 +115,7 @@ SQL_C_BIT =             SQL_BIT =           -7
 SQL_C_WCHAR =           SQL_WCHAR =         -8
 SQL_C_GUID =            SQL_GUID =          -11  
 SQL_C_TYPE_TIMESTAMP =  SQL_TYPE_TIMESTAMP = 93
+SQL_C_DEFAULT = 99
 
 SQL_DESC_DISPLAY_SIZE = SQL_COLUMN_DISPLAY_SIZE
 
@@ -358,14 +359,6 @@ ROWID = int
 DateFromTicks = datetime.date.fromtimestamp
 TimeFromTicks = lambda x: datetime.datetime.fromtimestamp(x).time()
 TimestampFromTicks = datetime.datetime.fromtimestamp
-
-
-# When Null is used in a binary parameter, database usually would not
-# accept the None for a binary field, so the work around is to use a 
-# Specical None that the pypyodbc moudle would know this NULL is for
-# a binary field.
-class BinaryNullType(): pass
-BinaryNull = BinaryNullType()
 
 
 #Define exceptions
@@ -1057,9 +1050,6 @@ def MutableNamedTupleRow(cursor):
 # The get_type function is used to determine if parameters need to be re-binded 
 # against the changed parameter types
 def get_type(v):
-    if v == BinaryNull:
-        return 'BNull'
-
     t = type(v)
     if t == str:
         if len(v) >= 255:
@@ -1137,8 +1127,8 @@ class Cursor:
             for param_buffer, param_buffer_len, sql_type in self._ParamBufferList:
                 c_char_buf, c_buf_len = '', 0
                 param_val = params[col_num]
-                if param_val in (None,BinaryNull):
-                    c_buf_len = -1
+                if param_val is None:
+                    c_buf_len = SQL_NULL_DATA
                     
                 elif type(param_val) == datetime.datetime:
                     c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
@@ -1312,20 +1302,36 @@ class Cursor:
         
         # Every parameter needs to be binded to a buffer
         ParamBufferList = []
+        # Temporary holder since we can only call SQLDescribeParam before
+        # calling SQLBindParam.
+        temp_holder = []
         for col_num in range(NumParams.value):
-            '''
-            DataType = ctypes.c_int()
-            ParamSize = ctypes.c_long()
-            DecimalDigits = ctypes.c_short()
-            Nullable = ctypes.c_bool()                        
-            ret = ODBC_API.SQLDescribeParam(self._stmt_h, col_num + 1, ADDR(DataType), ADDR(ParamSize), \
-                ADDR(DecimalDigits), ADDR(Nullable))
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            '''
             col_size = 0            
             buf_size = 512
         
-            if param_types[col_num] in (int,):
+            if param_types[col_num] == type(None):
+                ParameterNumber = ctypes.c_ushort(col_num + 1)
+                DataType = ctypes.c_short()
+                ParameterSize = ctypes.c_size_t()
+                DecimalDigits = ctypes.c_short()
+                Nullable = ctypes.c_short()
+                ret = ODBC_API.SQLDescribeParam(
+                    self._stmt_h,
+                    ParameterNumber,
+                    ADDR(DataType),
+                    ADDR(ParameterSize),
+                    ADDR(DecimalDigits),
+                    ADDR(Nullable),
+                )
+                if ret != SQL_SUCCESS:
+                    validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+                sql_c_type = SQL_C_DEFAULT
+                sql_type = DataType.value
+                buf_size = 1
+                ParameterBuffer = create_buffer(buf_size)
+
+            elif param_types[col_num] in (int,):
                 sql_c_type = SQL_C_CHAR            
                 sql_type = SQL_INTEGER    
                 buf_size = SQL_data_type_dict[sql_type][4]             
@@ -1429,12 +1435,6 @@ class Cursor:
                 buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer(buf_size)
             
-            
-            elif param_types[col_num] == 'BNull':
-                sql_c_type = SQL_C_BINARY
-                sql_type = SQL_VARBINARY 
-                buf_size = 1                 
-                ParameterBuffer = create_buffer(buf_size)                
                 
             else:
                 sql_c_type = SQL_C_CHAR
@@ -1442,6 +1442,9 @@ class Cursor:
                 buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer(buf_size)
                 
+            temp_holder.append((sql_c_type, sql_type, buf_size, col_size, ParameterBuffer))
+
+        for col_num, (sql_c_type, sql_type, buf_size, col_size, ParameterBuffer) in enumerate(temp_holder):
             BufferLen = ctypes.c_ssize_t(buf_size)
             LenOrIndBuf = ctypes.c_ssize_t()
                 
