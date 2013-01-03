@@ -642,11 +642,73 @@ def AllocateEnv():
     validate(ret, SQL_HANDLE_ENV, shared_env_h)
     
 
-#
-#The ROW Class. It is defined to inheritant the built-in "list" object type,
-#So that the object of ROW can use the "setattribute" method
-class ROW(list):
-    pass
+"""
+Here, we have a few callables that determine how a result row is returned.
+
+A new one can be added by creating a callable that:
+- accepts a cursor as its parameter.
+- returns a callable that accepts an iterable containing the row values.
+"""
+
+def TupleRow(cursor):
+    """Normal tuple with added attribute `cursor_description`, as in pyodbc.
+
+    This is the default.
+    """
+    class Row(tuple):
+        cursor_description = cursor.description
+
+    return Row
+
+
+def NamedTupleRow(cursor):
+    """Named tuple to allow attribute lookup by name.
+
+    Requires py2.6 or above.
+    """
+    from collections import namedtuple
+
+    attr_names = [x[0] for x in cursor._ColBufferList]
+
+    class Row(namedtuple('Row', attr_names, rename=True)):
+        cursor_description = cursor.description
+
+        def __new__(cls, iterable):
+            return super(Row, cls).__new__(cls, *iterable)
+
+    return Row
+
+
+def MutableNamedTupleRow(cursor):
+    """Mutable named tuple to allow attribute to be replaced. This should be
+    compatible with pyodbc's Row type.
+
+    Requires 3rd-party library "recordtype".
+    """
+    from recordtype import recordtype
+
+    attr_names = [x[0] for x in cursor._ColBufferList]
+
+    class Row(recordtype('Row', attr_names, rename=True)):
+        cursor_description = cursor.description
+
+        def __init__(self, iterable):
+            super(Row, self).__init__(*iterable)
+
+        def __iter__(self):
+            for field_name in self.__slots__:
+                yield getattr(self, field_name)
+
+        def __getitem__(self, index):
+            if isinstance(index, slice):
+                return tuple(getattr(self, x) for x in self.__slots__[index])
+            return getattr(self, self.__slots__[index])
+
+        def __setitem__(self, index, value):
+            setattr(self, self.__slots__[index], value)
+
+    return Row
+
 
 # The get_type function is used to determine if parameters need to be re-binded 
 # against the changed parameter types
@@ -673,16 +735,18 @@ def get_type(v):
 
 # The Cursor Class.
 class Cursor:
-    def __init__(self, conx):
+    def __init__(self, conx, row_type_callable=None):
         """ Initialize self._stmt_h, which is the handle of a statement
         A statement is actually the basis of a python"cursor" object
         """
         self._stmt_h = ctypes.c_int()
         self.connection = conx
+        self.row_type_callable = row_type_callable or TupleRow
         self.statement = None
         self._last_param_types = None
         self._ParamBufferList = []
         self._ColBufferList = []
+        self._row_type = None
         self._buf_cvt_func = []
         self.rowcount = -1
         self.description = None
@@ -707,7 +771,7 @@ class Cursor:
         
         self._free_results('FREE_STATEMENT')
         if len(args) > 0:
-            if len(args) == 1 and type(args[0]) in (tuple, list, set, ROW):
+            if len(args) == 1 and type(args[0]) in (tuple, list, set):
                 params = args[0]
             else:
                 params = args
@@ -717,8 +781,8 @@ class Cursor:
 
         if params != None:
             # If parameters exist, first prepare the query then executed with parameters
-            if not type(params) in (tuple, list, set, ROW):
-                raise TypeError("Params must be in a list, tuple, or Row")
+            if not type(params) in (tuple, list, set):
+                raise TypeError("Params must be in a list, tuple, or set")
             
             if not many_mode:
                 if query_string != self.statement:
@@ -1068,6 +1132,7 @@ class Cursor:
     def _CreateColBuf(self):
         NOC = self._NumOfCols()
         self._ColBufferList = []
+        self._row_type = None
         for col_num in range(NOC):
             col_name = self.description[col_num][0]            
             
@@ -1101,7 +1166,11 @@ class Cursor:
     def _GetData(self):
         '''Bind buffers for the record set columns'''
         
-        value_list = ROW()
+        # Lazily create the row type on first fetch.
+        if self._row_type is None:
+            self._row_type = self.row_type_callable(self)
+
+        value_list = []
         col_num = 0
         for col_name, target_type, used_buf_len, alloc_buffer, total_buf_len, buf_cvt_func in self._ColBufferList:
             
@@ -1144,11 +1213,9 @@ class Cursor:
                 value_list.append(None)
             else:
                 value_list.append(buf_cvt_func(raw_value))
-            setattr(value_list,col_name,value_list[-1])
             col_num += 1
-        value_list.cursor_description = self.description
-        return value_list
         
+        return self._row_type(value_list)
         
     
     def _UpdateDesc(self):
@@ -1733,13 +1800,13 @@ class Connection:
         self.connected = 1
         
         
-    def cursor(self): 
+    def cursor(self, row_type_callable=None): 
         #self.settimeout(self.timeout)
         if not self.connected:
             raise ProgrammingError('HY000','Attempt to use a closed connection.')
         
         
-        return Cursor(self)   
+        return Cursor(self, row_type_callable=row_type_callable)   
 
     def update_type_size_info(self):
         #Get the scale information for SQL_TYPE_TIMESTAMP
