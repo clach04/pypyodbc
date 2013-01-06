@@ -1716,12 +1716,11 @@ class Cursor:
         else:
             type = sqlType
         ret = ODBC_API.SQLGetTypeInfo(self._stmt_h, type)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-    
-        self._NumOfRows()
-        self._UpdateDesc()
-        #self._BindCols()
-        return (self)
+        if ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
+            self._NumOfRows()
+            self._UpdateDesc()
+            #self._BindCols()
+            return self.fetchone()
     
     
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
@@ -2091,9 +2090,9 @@ class Connection:
         # implicit serialization caused by writing to trace file.
         if ODBC_API._name != 'odbc32':
             with lock:
-                ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+                ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), None, 0, None, SQL_DRIVER_NOPROMPT)
         else:
-            ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+            ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), None, 0, None, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
             
         
@@ -2167,7 +2166,7 @@ class Connection:
             SQL_SS_TIME2,
         ):
             cur = Cursor(self)
-            info_tuple = cur.getTypeInfo(sql_type).fetchone()
+            info_tuple = cur.getTypeInfo(sql_type)
             if info_tuple != None:
                 self.type_size_dic[sql_type] = info_tuple[2], info_tuple[14]
             cur.close()
