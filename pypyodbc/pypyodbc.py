@@ -2196,7 +2196,7 @@ class Connection:
         if aInfoTypes[infotype] == 'GI_UINTEGER':
             total_buf_len = 1000
             alloc_buffer = ctypes.c_ulong()
-            used_buf_len = ctypes.c_long()
+            used_buf_len = ctypes.c_short()
             ret = ODBC_API.SQLGetInfo(self.dbc_h,infotype,ADDR(alloc_buffer), total_buf_len,\
                     ADDR(used_buf_len))
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
@@ -2205,7 +2205,7 @@ class Connection:
         elif aInfoTypes[infotype] == 'GI_USMALLINT':
             total_buf_len = 1000
             alloc_buffer = ctypes.c_ushort()
-            used_buf_len = ctypes.c_long()
+            used_buf_len = ctypes.c_short()
             ret = ODBC_API.SQLGetInfo(self.dbc_h,infotype,ADDR(alloc_buffer), total_buf_len,\
                     ADDR(used_buf_len))
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
