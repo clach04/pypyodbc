@@ -673,7 +673,7 @@ ODBC_API.SQLDataSources.argtypes = [
     ctypes.POINTER(ctypes.c_short),
     ctypes.c_char_p,
     ctypes.c_short,
-    ctypes.c_short,
+    ctypes.POINTER(ctypes.c_short),
 ]
 
 ODBC_API.SQLDescribeCol.argtypes = [
