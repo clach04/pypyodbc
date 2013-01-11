@@ -3,8 +3,6 @@
 # PyPyODBC is develped from RealPyODBC 0.1 beta released in 2004 by Michele Petrazzo. Thanks Michele.
 
 # The MIT License (MIT)
-# Copyright (c) 2012 Henry Zhou <jiangwen365@gmail.com>
-# Copyright (c) 2004 Michele Petrazzo
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
 # documentation files (the "Software"), to deal in the Software without restriction, including without limitation
@@ -35,7 +33,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.7'
+version = '0.9.0'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
@@ -611,37 +609,125 @@ funcs_with_ret = [
 for func_name in funcs_with_ret:
     getattr(ODBC_API, func_name).restype = ctypes.c_short
 
+if sys.platform not in ('cli'):
+    #Seems like the IronPython can not declare ctypes.POINTER type arguments
+    ODBC_API.SQLAllocHandle.argtypes = [
+        ctypes.c_short,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
 
-ODBC_API.SQLAllocHandle.argtypes = [
-    ctypes.c_short,
-    ctypes.c_void_p,
-    ctypes.POINTER(ctypes.c_void_p),
-]
+    ODBC_API.SQLBindParameter.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.c_short,
+        ctypes.c_short,
+        ctypes.c_short,
+        ctypes.c_size_t,
+        ctypes.c_short,
+        ctypes.c_void_p,
+        ctypes.c_ssize_t,
+        ctypes.POINTER(ctypes.c_ssize_t),
+    ]
 
-ODBC_API.SQLBindParameter.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.c_short,
-    ctypes.c_short,
-    ctypes.c_short,
-    ctypes.c_size_t,
-    ctypes.c_short,
-    ctypes.c_void_p,
-    ctypes.c_ssize_t,
-    ctypes.POINTER(ctypes.c_ssize_t),
-]
+    ODBC_API.SQLColAttribute.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.c_ushort,
+        ctypes.c_void_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.POINTER(ctypes.c_ssize_t),
+    ]
+
+    ODBC_API.SQLDataSources.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.c_char_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.c_char_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
+    ODBC_API.SQLDescribeCol.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.c_char_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
+    ODBC_API.SQLDescribeParam.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
+    ODBC_API.SQLDriverConnect.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.c_short,
+        ctypes.c_char_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+        ctypes.c_ushort,
+    ]
+
+    ODBC_API.SQLGetData.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.c_short,
+        ctypes.c_void_p,
+        ctypes.c_ssize_t,
+        ctypes.POINTER(ctypes.c_ssize_t),
+    ]
+
+    ODBC_API.SQLGetDiagRec.argtypes = [
+        ctypes.c_short,
+        ctypes.c_void_p,
+        ctypes.c_short,
+        ctypes.c_char_p,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.c_char_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
+    ODBC_API.SQLGetInfo.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ushort,
+        ctypes.c_void_p,
+        ctypes.c_short,
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
+    ODBC_API.SQLRowCount.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_ssize_t),
+    ]
+
+    ODBC_API.SQLNumParams.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
+    ODBC_API.SQLNumResultCols.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_short),
+    ]
+
 
 ODBC_API.SQLCloseCursor.argtypes = [ctypes.c_void_p]
-
-ODBC_API.SQLColAttribute.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.c_ushort,
-    ctypes.c_void_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.POINTER(ctypes.c_ssize_t),
-]
 
 ODBC_API.SQLColumns.argtypes = [
     ctypes.c_void_p,
@@ -665,50 +751,10 @@ ODBC_API.SQLConnect.argtypes = [
     ctypes.c_short,
 ]
 
-ODBC_API.SQLDataSources.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.c_char_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.c_char_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-]
 
-ODBC_API.SQLDescribeCol.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.c_char_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.POINTER(ctypes.c_size_t),
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.POINTER(ctypes.c_short),
-]
-
-ODBC_API.SQLDescribeParam.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.POINTER(ctypes.c_size_t),
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.POINTER(ctypes.c_short),
-]
 
 ODBC_API.SQLDisconnect.argtypes = [ctypes.c_void_p]
 
-ODBC_API.SQLDriverConnect.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_void_p,
-    ctypes.c_char_p,
-    ctypes.c_short,
-    ctypes.c_char_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-    ctypes.c_ushort,
-]
 
 ODBC_API.SQLEndTran.argtypes = [
     ctypes.c_short,
@@ -758,33 +804,6 @@ ODBC_API.SQLFreeStmt.argtypes = [
     ctypes.c_ushort,
 ]
 
-ODBC_API.SQLGetData.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.c_short,
-    ctypes.c_void_p,
-    ctypes.c_ssize_t,
-    ctypes.POINTER(ctypes.c_ssize_t),
-]
-
-ODBC_API.SQLGetDiagRec.argtypes = [
-    ctypes.c_short,
-    ctypes.c_void_p,
-    ctypes.c_short,
-    ctypes.c_char_p,
-    ctypes.POINTER(ctypes.c_int),
-    ctypes.c_char_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-]
-
-ODBC_API.SQLGetInfo.argtypes = [
-    ctypes.c_void_p,
-    ctypes.c_ushort,
-    ctypes.c_void_p,
-    ctypes.c_short,
-    ctypes.POINTER(ctypes.c_short),
-]
 
 ODBC_API.SQLGetTypeInfo.argtypes = [
     ctypes.c_void_p,
@@ -793,15 +812,6 @@ ODBC_API.SQLGetTypeInfo.argtypes = [
 
 ODBC_API.SQLMoreResults.argtypes = [ctypes.c_void_p]
 
-ODBC_API.SQLNumParams.argtypes = [
-    ctypes.c_void_p,
-    ctypes.POINTER(ctypes.c_short),
-]
-
-ODBC_API.SQLNumResultCols.argtypes = [
-    ctypes.c_void_p,
-    ctypes.POINTER(ctypes.c_short),
-]
 
 ODBC_API.SQLPrepare.argtypes = [
     ctypes.c_void_p,
@@ -841,10 +851,6 @@ ODBC_API.SQLProcedures.argtypes = [
     ctypes.c_short,
 ]
 
-ODBC_API.SQLRowCount.argtypes = [
-    ctypes.c_void_p,
-    ctypes.POINTER(ctypes.c_ssize_t),
-]
 
 ODBC_API.SQLSetConnectAttr.argtypes = [
     ctypes.c_void_p,
@@ -885,10 +891,13 @@ ODBC_API.SQLTables.argtypes = [
 ]
 
 def to_wchar(argtypes):
-    return [
-        wchar_type if x == ctypes.c_char_p else x
-        for x in argtypes
-    ]
+    if argtypes: # Under IronPython some argtypes are not declared
+        return [
+            wchar_type if x == ctypes.c_char_p else x
+            for x in argtypes
+        ]
+    else:
+        return argtypes
 
 ODBC_API.SQLColumnsW.argtypes = to_wchar(ODBC_API.SQLColumns.argtypes)
 ODBC_API.SQLConnectW.argtypes = to_wchar(ODBC_API.SQLConnect.argtypes)
