@@ -95,9 +95,9 @@ def main():
             
             
             #Get results
-            field = cur.fetchone().bin_logo
+            field = cur.fetchone()[-1]#.bin_logo
             file(cur_file_dir()+'\\logo_'+database_name+'.gif','wb').write(field)
-            field = cur.fetchone().bin_logo
+            field = cur.fetchone()[-1]#.bin_logo
             file(cur_file_dir()+'\\logo2_'+database_name+'.gif','wb').write(field)
             
             
@@ -127,9 +127,9 @@ def main():
 
             
             #Get results
-            field = cur.fetchone().bin_logo
+            field = cur.fetchone()[-1]#.bin_logo
             file(cur_file_dir()+'\\logo_'+database_name+'.gif','wb').write(field)
-            field = cur.fetchone().bin_logo
+            field = cur.fetchone()[-1]#.bin_logo
             file(cur_file_dir()+'\\logo2_'+database_name+'.gif','wb').write(field)
 
 
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         
         
     print pypyodbc.version    
-    mdb_path = unicode(cur_file_dir(),'mbcs')+'\\e.mdb'
+    mdb_path = cur_file_dir()+'\\e.mdb'
     
     if hasattr(pypyodbc,'win_create_mdb') and sys.platform in ('win32','cli'):
         pypyodbc.win_create_mdb('"'+mdb_path+'"')
