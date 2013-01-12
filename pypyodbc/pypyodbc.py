@@ -18,10 +18,24 @@
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-
+from __future__ import with_statement
 
 import sys, os, datetime, ctypes, threading
 from decimal import Decimal
+
+try:
+    bytearray
+except NameError:
+    # pre 2.6
+    bytearray = str
+
+if not hasattr(ctypes, 'c_ssize_t'):
+    if ctypes.sizeof(ctypes.c_uint) == ctypes.sizeof(ctypes.c_void_p):
+        ctypes.c_ssize_t = ctypes.c_int
+    elif ctypes.sizeof(ctypes.c_ulong) == ctypes.sizeof(ctypes.c_void_p):
+        ctypes.c_ssize_t = ctypes.c_long
+    elif ctypes.sizeof(ctypes.c_ulonglong) == ctypes.sizeof(ctypes.c_void_p):
+        ctypes.c_ssize_t = ctypes.c_longlong
 
 DEBUG = 0
 # Comment out all "if DEBUG:" statements like below for production
@@ -892,10 +906,13 @@ ODBC_API.SQLTables.argtypes = [
 
 def to_wchar(argtypes):
     if argtypes: # Under IronPython some argtypes are not declared
-        return [
-            wchar_type if x == ctypes.c_char_p else x
-            for x in argtypes
-        ]
+        result = []
+        for x in argtypes:
+            if x == ctypes.c_char_p:
+                result.append(wchar_type)
+            else:
+                result.append(x)
+        return result
     else:
         return argtypes
 
