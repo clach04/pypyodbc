@@ -26,7 +26,7 @@ from decimal import Decimal
 try:
     bytearray
 except NameError:
-    # pre 2.6
+    # pre version 2.6 python does not have the bytearray type
     bytearray = str
 
 if not hasattr(ctypes, 'c_ssize_t'):
@@ -47,7 +47,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.9.0'
+version = '0.9.1'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
