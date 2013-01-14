@@ -18,8 +18,6 @@
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-from __future__ import with_statement
-
 import sys, os, datetime, ctypes, threading
 from decimal import Decimal
 
@@ -2061,11 +2059,14 @@ class Connection:
         
         self.clear_output_converters()
 
-        with lock:
+        try:
+            lock.acquire()
             if shared_env_h == None:
                 #Initialize an enviroment if it is not created.
                 AllocateEnv()
-            
+        finally:
+            lock.release()
+        
         # Allocate an DBC handle self.dbc_h under the environment shared_env_h
         # This DBC handle is actually the basis of a "connection"
         # The handle of self.dbc_h will be used to connect to a certain source 
@@ -2115,8 +2116,11 @@ class Connection:
         # less likely to happen if ODBC Tracing is enabled, likely due to the
         # implicit serialization caused by writing to trace file.
         if ODBC_API._name != 'odbc32':
-            with lock:
+            try:
+                lock.acquire()
                 ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), None, 0, None, SQL_DRIVER_NOPROMPT)
+            finally:
+                lock.release()
         else:
             ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), None, 0, None, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
@@ -2317,9 +2321,12 @@ def dataSources():
     dsn_len = ctypes.c_short()
     desc_len = ctypes.c_short()
     dsn_list = {}
-    with lock:
+    try:
+        lock.acquire()
         if shared_env_h == None:
             AllocateEnv()
+    finally:
+        lock.release()
     while 1:
         ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
             dsn, len(dsn), ADDR(dsn_len), desc, len(desc), ADDR(desc_len))
