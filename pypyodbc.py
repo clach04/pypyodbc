@@ -1188,6 +1188,7 @@ class Cursor:
         self._row_type = None
         self._buf_cvt_func = []
         self.rowcount = -1
+        self._rowcount_tracker = 0
         self.description = None
         self.autocommit = None
         self._ColTypeCodeList = []
@@ -1707,6 +1708,7 @@ class Cursor:
             self.execute(query_string, params, many_mode = True)
         self._NumOfRows()
         self.rowcount = -1
+        self._rowcount_tracker = 0
         self._UpdateDesc()
         #self._BindCols()
         
@@ -1831,6 +1833,8 @@ class Cursor:
         if ret != SQL_SUCCESS:
             check_success(self, ret)
         self.rowcount = NOR.value
+        if self.rowcount == -1 and self._rowcount_tracker != 0:
+            self.rowcount = self._rowcount_tracker
         return self.rowcount    
 
     
@@ -1884,6 +1888,7 @@ class Cursor:
         if ret in (SQL_SUCCESS,SQL_SUCCESS_WITH_INFO):            
             '''Bind buffers for the record set columns'''
             
+            self._rowcount_tracker += 1  # manually track row count, some backends return -1 immediately after prepare/execute and do not know row count until later
             value_list = []
             col_num = 1
             for col_name, target_type, used_buf_len, ADDR_used_buf_len, alloc_buffer, ADDR_alloc_buffer, total_buf_len, buf_cvt_func, bind_data in self._ColBufferList:
@@ -1951,7 +1956,8 @@ class Cursor:
         
         else:
             if ret == SQL_NO_DATA_FOUND:
-                
+                if self.rowcount == -1 and self._rowcount_tracker != 0:
+                    self.rowcount = self._rowcount_tracker
                 return None
             else:
                 check_success(self, ret)
@@ -2008,6 +2014,7 @@ class Cursor:
         
         #self.description = None
         #self.rowcount = -1
+        self._rowcount_tracker = 0
         if free_type in (SQL_CLOSE, None):
             ret = ODBC_API.SQLFreeStmt(self.stmt_h, SQL_CLOSE)
             if ret != SQL_SUCCESS:
@@ -2399,7 +2406,7 @@ class Cursor:
 
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self.stmt_h)
             check_success(self, ret)
-        
+        self._rowcount_tracker = 0
         
         self.closed = True
     
